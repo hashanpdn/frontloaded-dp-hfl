@@ -1,0 +1,13 @@
+# PyTorch CUDA 11.8 wheels (keeps PyPI as primary index)
+--extra-index-url https://download.pytorch.org/whl/cu118
+
+# Exact cu118-compatible versions
+torch==2.1.2
+torchvision==0.16.2
+torchaudio==2.1.2
+
+# Core dependencies
+tensorboardX==2.6.2.2
+numpy==1.26.4
+tqdm==4.66.2
+Pillow==10.2.0
