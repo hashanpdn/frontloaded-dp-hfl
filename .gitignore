@@ -1,0 +1,140 @@
+############################################################
+# OS-SPECIFIC ARTIFACTS
+############################################################
+.DS_Store
+.DS_Store?
+Thumbs.db
+ehthumbs.db
+Icon?
+*.lnk
+
+############################################################
+# PYTHON BYTECODE / CACHES / TEMP
+############################################################
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.orig
+*.bak
+*.tmp
+*.temp
+tmp/
+temp/
+.cache/
+*.cache
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Coverage / testing artifacts
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.nox/
+
+############################################################
+# ENVIRONMENTS / CREDENTIALS (DO NOT COMMIT)
+############################################################
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Env files / secrets
+.env
+.env.*
+.envrc
+
+# Python version managers
+# (comment out if you want to track it)
+# .python-version
+
+############################################################
+# BUILD / PACKAGING
+############################################################
+build/
+dist/
+pip-wheel-metadata/
+*.egg-info/
+*.egg
+.eggs/
+wheels/
+sdist/
+MANIFEST
+
+############################################################
+# EDITORS / IDEs
+############################################################
+.vscode/
+.idea/
+*.code-workspace
+
+############################################################
+# LOGS / DIAGNOSTICS / PROFILING
+############################################################
+logs/
+*.log
+nohup.out
+profile/
+profiler/
+*.profile
+*.trace
+*.jsonl
+
+############################################################
+# EXPERIMENT TRACKERS (UNCOMMENT IF USED)
+############################################################
+# wandb/
+# lightning_logs/
+
+############################################################
+# TENSORBOARD
+############################################################
+runs/
+events.out.tfevents.*
+
+############################################################
+# DATASETS (AUTO-DOWNLOADED / LARGE; NOT TRACKED)
+############################################################
+data/
+datasets/
+
+############################################################
+# MODEL ARTIFACTS / OUTPUTS
+############################################################
+checkpoints/
+outputs/
+artifacts/
+*.pt
+*.pth
+*.ckpt
+*.onnx
+*.safetensors
+
+############################################################
+# TORCH EXTENSIONS CACHE
+############################################################
+torch_extensions/
+
+############################################################
+# ARCHIVES / LARGE FILES (IF GENERATED)
+############################################################
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.7z
+
+############################################################
+# MISC EDITOR SWAP / BACKUP FILES
+############################################################
+*.swp
+*.swo
+*~
+.~*
