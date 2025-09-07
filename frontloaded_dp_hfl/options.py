@@ -1,7 +1,20 @@
+"""Experiment configuration for hierarchical FL with front-loaded DP.
+
+Defines CLI flags covering:
+  - dataset/model selection
+  - client training hyper-parameters
+  - federated sampling/topology settings
+  - reproducibility and environment options
+  - privacy modes (baseline, CG-NG, CG-NP, CP-NP) and DP hyper-parameters
+  - edge/server step size for CP-NP delta application
+"""
+
 import argparse
 import torch
 
+
 def args_parser():
+    """Build and parse command-line arguments; also sets args.cuda."""
     parser = argparse.ArgumentParser()
 
     # dataset and model
@@ -97,7 +110,7 @@ def args_parser():
         '--iid',
         type=int,
         default=1,
-        help='distribution of the data: 1, 0, -2(one-class)'
+        help='distribution of the data: 1, 0, -1, -2(one-class)'
     )
     parser.add_argument(
         '--edgeiid',
@@ -186,7 +199,7 @@ def args_parser():
     parser.add_argument(
         '--mode',
         type=str,
-        default='CP-NP',
+        default='baseline',
         help='mode to be selected: "baseline", "CG-NG", "CG-NP", "CP-NP"'
     )
     parser.add_argument(
