@@ -1,19 +1,21 @@
-# average.py
+"""
+Averaging utilities for hierarchical FL.
+
+- average_weights: FedAvg over full state_dicts (edge/cloud).
+- average_weights_edge: Apply averaged client deltas to an edge model (CP-NP).
+"""
+
 import torch
 
+
 def _check_inputs(w, s_num):
-    """
-    Validate inputs for averaging:
-      - w: list[ state_dict ]
-      - s_num: list[int] sample counts aligned with w
-      - all state_dicts share identical keys and shapes
-    """
+    """Validate list lengths, positive total weight, and matching keys/shapes."""
     if not isinstance(w, (list, tuple)) or len(w) == 0:
-        raise ValueError("average_weights: 'w' must be a non-empty list of state_dicts.")
+        raise ValueError("'w' must be a non-empty list of state_dicts.")
     if not isinstance(s_num, (list, tuple)) or len(s_num) != len(w):
-        raise ValueError("average_weights: 's_num' must match length of 'w'.")
+        raise ValueError("'s_num' must match the length of 'w'.")
     if sum(s_num) <= 0:
-        raise ValueError("average_weights: total sample count must be > 0.")
+        raise ValueError("Total sample count must be > 0.")
 
     ref = w[0]
     ref_keys = set(ref.keys())
@@ -21,25 +23,22 @@ def _check_inputs(w, s_num):
         keys = set(sd.keys())
         if keys != ref_keys:
             missing = ref_keys - keys
-            extra   = keys - ref_keys
+            extra = keys - ref_keys
             raise ValueError(
-                f"average_weights: state_dict key mismatch at index {i}. "
-                f"Missing: {sorted(missing)}, Extra: {sorted(extra)}"
+                f"Key mismatch at index {i}. Missing: {sorted(missing)}, Extra: {sorted(extra)}"
             )
         for k in ref_keys:
             if sd[k].shape != ref[k].shape:
                 raise ValueError(
-                    f"average_weights: tensor shape mismatch for key '{k}' at index {i}: "
-                    f"{sd[k].shape} vs {ref[k].shape}"
+                    f"Shape mismatch for '{k}' at index {i}: {sd[k].shape} vs {ref[k].shape}"
                 )
+
 
 @torch.no_grad()
 def average_weights(w, s_num):
     """
-    FedAvg over FULL WEIGHTS (used at Edge for baseline/CG-* and at Cloud).
-    - Averages only floating tensors.
-    - Non-floating tensors (e.g., BN counters) are copied from the first model.
-    - Per-key dtype/device is aligned to the first model's tensor.
+    Weighted FedAvg over FULL weights.
+    Floating tensors are averaged; non-floating are copied from the first model.
     """
     _check_inputs(w, s_num)
     total = float(sum(s_num))
@@ -59,36 +58,31 @@ def average_weights(w, s_num):
             out[k] = ref_t.clone()
     return out
 
+
 @torch.no_grad()
 def average_weights_edge(e_model, w, s_num, eta: float = 1.0):
     """
     Edge-side aggregation for CP-NP:
-      - e_model: current edge shared state_dict (FULL WEIGHTS)
-      - w: list of NOISY DELTA state_dicts from clients (same keys/shapes as e_model)
-      - s_num: list of client sample counts
-      - eta: optional damping (edge/server LR). eta=1.0 reproduces FedAvg on deltas.
-
-    Applies: new_state = e_model + eta * (sum_i (s_i / sum_j s_j) * delta_i)
-    Only floating tensors are updated; non-floating are copied unchanged.
+    new_state = e_model + eta * sum_i (s_i / sum_j s_j) * delta_i
     """
     if not isinstance(e_model, dict):
-        raise ValueError("average_weights_edge: 'e_model' must be a state_dict (dict).")
-    _check_inputs(w, s_num)  # validates w among themselves
+        raise ValueError("'e_model' must be a state_dict (dict).")
+    _check_inputs(w, s_num)
 
-    # Ensure delta keys match e_model keys
+    # Ensure delta keys match e_model
     model_keys = set(e_model.keys())
     delta_keys = set(w[0].keys())
     if delta_keys != model_keys:
         missing = model_keys - delta_keys
-        extra   = delta_keys - model_keys
+        extra = delta_keys - model_keys
         raise ValueError(
-            "average_weights_edge: key mismatch between e_model and deltas. "
+            "Key mismatch between e_model and deltas. "
             f"Missing in deltas: {sorted(missing)}; Extra in deltas: {sorted(extra)}"
         )
 
     total = float(sum(s_num))
 
-    # Compute averaged delta per key, aligned to e_model's dtype/device
+    # Average deltas per key (dtype/device aligned to e_model)
     delta_avg = {}
     for k, base in e_model.items():
         if base.is_floating_point():
@@ -102,7 +96,7 @@ def average_weights_edge(e_model, w, s_num, eta: float = 1.0):
         else:
             delta_avg[k] = None
 
-    # Apply averaged delta (with optional damping eta)
+    # Apply averaged delta
     new_state = {}
     for k, base in e_model.items():
         if base.is_floating_point() and (delta_avg[k] is not None):
