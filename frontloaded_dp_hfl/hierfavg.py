@@ -1,5 +1,12 @@
-# Flow of the algorithm
-# Client update (t1) -> Edge Aggregate (t2) -> Cloud Aggregate (t3)
+"""
+Hierarchical Federated Learning (client→edge→cloud) with front-loaded DP.
+
+This module orchestrates the full training/evaluation loop: sampling edges/clients,
+pushing edge state to clients, running local updates under a selected DP mode,
+aggregating at edges (FedAvg on full weights or deltas), aggregating at the cloud,
+broadcasting the global model, and logging metrics.
+Key flags are defined in options.py (e.g., --mode, --clip, --sigma, --eta).
+"""
 
 from options import args_parser
 from tensorboardX import SummaryWriter
@@ -16,6 +23,7 @@ from models.cifar_cnn import cifar_cnn_2conv, cifar_cnn_3conv
 
 
 def get_client_class(args, clients):
+    """Group client IDs by their dominant class (labels 0–9)."""
     client_class = []
     client_class_dis = [[] for _ in range(10)]
     for client in clients:
@@ -27,7 +35,9 @@ def get_client_class(args, clients):
     print(client_class_dis)
     return client_class_dis
 
+
 def get_edge_class(args, edges, clients):
+    """Report per-edge class composition (dominant labels of member clients)."""
     edge_class = [[] for _ in range(5)]
     for (i, edge) in enumerate(edges):
         for cid in edge.cids:
@@ -38,10 +48,12 @@ def get_edge_class(args, edges, clients):
             edge_class[i].append(label)
     print(f'class distribution among edge {edge_class}')
 
+
 def initialize_edges_iid(num_edges, clients, args, client_class_dis):
     """
-    Designed for 10*L users, 1-class per user; distribution among edges is iid.
-    10 clients per edge, each edge has 10 classes.
+    Initialize edges with IID class coverage under the 10×L one-class-per-user setting.
+    For the first num_edges-1 edges: assign one client per class (0–9).
+    The last edge receives remaining clients.
     """
     edges = []
     for eid in range(num_edges):
@@ -81,9 +93,11 @@ def initialize_edges_iid(num_edges, clients, args, client_class_dis):
     edges.append(edge)
     return edges
 
+
 def initialize_edges_niid(num_edges, clients, args, client_class_dis):
     """
-    Designed for 10*L users, 1-class per user; per-edge class coverage is 5 classes.
+    Initialize edges with non-IID class coverage (5 classes per edge) under the
+    10×L one-class-per-user setting. The last edge receives remaining clients.
     """
     edges = []
     label_ranges = [[0,1,2,3,4],[1,2,3,4,5],[5,6,7,8,9],[6,7,8,9,0]]
@@ -135,8 +149,9 @@ def initialize_edges_niid(num_edges, clients, args, client_class_dis):
     edges.append(edge)
     return edges
 
+
 def all_clients_test(server, clients, cids, device):
-    # push server state to clients, then evaluate locally
+    """Push server state to the specified clients and compute their aggregate accuracy."""
     for cid in cids:
         server.send_to_client(clients[cid])
         clients[cid].sync_with_edgeserver()
@@ -148,7 +163,9 @@ def all_clients_test(server, clients, cids, device):
         total_edge += total
     return correct_edge, total_edge
 
+
 def fast_all_clients_test(v_test_loader, global_nn, device):
+    """Evaluate the global (cloud) model on a centralized validation test loader."""
     global_nn.eval()
     correct_all = 0.0
     total_all = 0.0
@@ -163,7 +180,9 @@ def fast_all_clients_test(v_test_loader, global_nn, device):
             correct_all += (predicts == labels).sum().item()
     return correct_all, total_all
 
+
 def initialize_global_nn(args):
+    """Instantiate the global model used for validation, based on dataset/model flags."""
     if args.dataset == 'mnist':
         if args.model == 'lenet':
             global_nn = mnist_lenet(input_channels=1, output_channels=10)
@@ -180,7 +199,9 @@ def initialize_global_nn(args):
         raise ValueError(f"Dataset {args.dataset} not implemented")
     return global_nn
 
+
 def HierFAVG(args):
+    """Run the hierarchical FL training loop with edge/cloud aggregation and logging."""
     # reproducibility
     torch.manual_seed(args.seed)
     np.random.seed(args.seed)
@@ -196,6 +217,7 @@ def HierFAVG(args):
         device = torch.device("cpu")
     print(f'Using device {device}')
 
+    # TensorBoard experiment tag
     FILEOUT = (
         f"{args.dataset}_clients{args.num_clients}_edges{args.num_edges}_"
         f"t1-{args.num_local_update}_t2-{args.num_edge_aggregation}"
@@ -393,9 +415,12 @@ def HierFAVG(args):
     writer.close()
     print(f"The final training loss is {avg_train_loss} and final test acc is {avg_acc_v}")
 
+
 def main():
+    """Parse CLI arguments and launch the HierFAVG training loop."""
     args = args_parser()
     HierFAVG(args)
+
 
 if __name__ == '__main__':
     main()
